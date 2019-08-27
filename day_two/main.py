@@ -24,7 +24,29 @@ def open_file(path):
 def load_sheets(book, ignore_sheets=[]):
     data_dict = {}
     for sheet_name in book.sheet_names():
+        if sheet_name in ignore_sheets:
+            continue
         sheet = book.sheet_by_name(sheet_name)
+        # child and parent relationships are separated by a hyphen
+        # The 1st layer sheet will have a key feild in it the same name as
+        # the sheet name
+        # The child sheet name will have the parent name as well as the child
+        # name separated by a hyphen.
+        # example:
+        #
+        # 'Parent_sheet'
+        # | Parent_sheet | data1 | data2 | data3 |
+        # ----------------------------------------
+        # | asdf         | 123   | help  | kind  |
+        # | qwer         | 234   | hurt  | gentle|
+        #
+        # 'Parent_sheet - Child_sheet'
+        # | Parent_sheet | child_sheet | data1 | data2 |
+        # -----------------------------------------------
+        # | asdf         | yuio        | help  | kind  |
+        # | asdf         | hjkl        | hurt  | gentle|
+        #
+        #
         if '-' in sheet_name:
             # this is a child sheet
             ancestory = sheet_name.split('-')

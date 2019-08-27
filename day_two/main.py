@@ -28,15 +28,25 @@ def load_sheets(book, ignore_sheets=[]):
         if '-' in sheet_name:
             # this is a child sheet
             ancestory = sheet_name.split('-')
+            last_key = ''
             for x in range(0, len(ancestory)):
-                key = ancestory[x].lower().strip()
-                print(key)
+                key = ancestory[x].lower().strip().replace(' ', '_')
+
+                if x < len(ancestory) - 1:
+                    print(key)
+                    data_dict[key] = {}
+                    last_key = key
+                else:
+                    print(data_dict)
+                    data_dict[last_key][key] = []
         else:
             # first row is var_names
             header_row = sheet.row(0)
             for cell in header_row:
-                print(cell.value.lower())
-                data_dict[cell.value] = ''
+                key = cell.value.lower().strip()
+                data_dict[key] = ''
+
+    print(data_dict)
 
 
 if __name__ == '__main__':

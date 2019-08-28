@@ -1,0 +1,20 @@
+<universities>
+  {%- for uni in data.university %}
+  <university>
+    <name>{{uni.university}}</name>
+    <street_address>{{ uni.street_num }} {{ uni.street }}</street_address>
+    <city>{{ uni.city }}</city>
+    <state>{{ uni.state }}</state>
+    <students>
+      {%- for student in uni.students %}
+      <student>
+        <first_name>{{student.first_name}}</first_name>
+        <last_name>{{student.last_name}}</last_name>
+        <email>{{student.email}}</email>
+        <gender>{{student.gender}}</gender>
+      </student>
+      {%- endfor %}
+    </students>
+  </university>
+  {%- endfor %}
+</universities>

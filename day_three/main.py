@@ -116,14 +116,15 @@ def load_sheets(book, ignore_sheets=[]):
                             parent_pointer = parent[ancestory[1].strip().lower().replace(' ', '_')]
 
 
-                    print(f'Fields {parent_sheet_name} matched')
+                    # print(f'Fields {parent_sheet_name} matched')
                 record[headers[col_idx]] = cell_obj.value
             parent_pointer.append(record)
-    pprint(data_dict)
+    return data_dict
 
 
 if __name__ == '__main__':
     for file in xls_files:
         cur_book = open_file(file)
 
-        load_sheets(cur_book)
+        relational_wb_data = load_sheets(cur_book)
+        pprint(relational_wb_data)

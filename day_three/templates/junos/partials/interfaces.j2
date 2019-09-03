@@ -1,0 +1,68 @@
+
+{% for iface in host_data.interfaces -%}
+{% if iface.type == 'loopback' -%}
+set routing-options router-id {{ iface.inet }}
+set snmp trap-options source-address {{ iface.inet6.network_address }}
+set system ntp source-address {{ iface.inet6.network_address }}
+set interfaces {{ iface.interfaces }} unit 0 family inet6 address {{ iface.inet6.network_address }}
+set interfaces {{ iface.interfaces }} unit 0 description ";;{{ host_data.hosts }}.{{ region_data.abvr }}.{{ market_data.abvr2 }};PRIMARY LOOPBACK INTERFACE;"
+
+{% elif 'ether' ==  iface.type -%}
+set interfaces {{ iface.interfaces }} description ";{{ iface.cid }};{{iface.remote_host}};{{ iface.remote_interface}};MR;DIRECT LINK;HUB-UPLINK"
+set interfaces {{ iface.interfaces }} ether-options 802.3ad {{ iface.member_of_lag }}
+
+{% elif iface.type == 'aggregate' -%}
+set interfaces {{ iface.interfaces }} description ";{{ iface.cid }};{{ iface.remote_host }};{{ iface.remote_interface }};MR;1*100G AGGREGATE TO {{ iface.remote_host }};HUB-UPLINK"
+set interfaces {{ iface.interfaces }} mtu 9100
+set interfaces {{ iface.interfaces }} aggregated-ether-options no-flow-control
+set interfaces {{ iface.interfaces }} aggregated-ether-options minimum-links 2
+set interfaces {{ iface.interfaces }} aggregated-ether-options link-speed 100g
+set interfaces {{ iface.interfaces }} aggregated-ether-options lacp active
+{% if iface.mode == 'trunk' -%}
+set interfaces {{ iface.interfaces }} unit 0 family ethernet-switching interface-mode trunk
+{% set local_vlans = iface.vlans.split(",") -%}
+{% for local_vlan in local_vlans -%}
+set interfaces {{ iface.interfaces }} unit 0 family ethernet-switching vlan members {{ local_vlan }}
+{% endfor -%}
+{% else -%}
+set interfaces {{ iface.interfaces }} unit 0 family iso
+set interfaces {{ iface.interfaces }} unit 0 family inet6 address {{ iface.inet6 }}
+{% endif -%}
+
+{% elif iface.type == 'irb' -%}
+set interfaces irb unit {{ iface.interfaces }} description ";;{{ iface.remote_host }};{{ iface.remote_interface }};NN;DPA-TO-DPA IRB INTERFACE FOR LAYER-3 ROUTING;"
+set interfaces irb unit {{ iface.interfaces }} family iso
+set interfaces irb unit {{ iface.interfaces }} family inet6 address {{ iface.inet6 }}
+
+set vlans VLAN-{{iface.interfaces }} vlan-id {{ iface.interface }}
+set vlans VLAN-{{iface.interfaces }} description ";;;;NN;IRB-{{ iface.interface }} VLAN INTERFACE;"
+set vlans VLAN-{{iface.interfaces }} l3-interface irb.{{iface.interface}}
+{% endif -%}
+{% endfor %}
+
+
+{# handle the xe interfaces for the DPA switches #}
+{% if host_data.role == 'DPA' %}
+{# slice the instance number off the back of the dpa hostname #}
+{% set dpa_instance = host_data.hosts[-1:] %}
+DPA instance is {{dpa_instance}}
+{% set prefixes = host_data.dpa_irb_prefixes[0].inet6_prefix|inet6_prefix_to(64) %}
+{% for map in dpa_xe_interfaces %}
+{% if map.dpa|int == dpa_instance|int %}
+{% set prefix = prefixes %}
+set interfaces {{ map.dpa_int }} description ";;{{ site_data.abvr4 }}CAPC0{{ map.ccap }};{{ map.ccap_int }};NN;PRIMARY DPIC INTERFACE;DPIC-DOWNLINK"
+set interfaces {{ map.iface_name }} mtu 2368
+set interfaces {{ map.iface_name }} unit 0 family ethernet-switching interface-mode access
+set interfaces {{ map.iface_name }} unit 0 family ethernet-switching vlan members VLAN-{{map.irb}}
+set interfaces irb unit {{ map.irb }} description ";;;;NN;PRIMARY IRB INTERFACE TO {{ map.ccap_int }}"
+set interfaces irb unit {{ map.irb }} family inet6 address {{ prefix|inet6_vrrp_north }} vrrp-inet6-group {{ map.irb }} virtual-inet6-address {{ prefix|inet6_vrrp_vip }}
+{% if dpa_instance == 1 -%}
+set interfaces irb unit {{ map.irb }} family inet6 address {{ prefix|inet6_vrrp_north }} vrrp-inet6-group {{ map.irb }} priority 200
+{% else -%}
+set interfaces irb unit {{ map.irb }} family inet6 address {{ prefix|inet6_vrrp_north }} vrrp-inet6-group {{ map.irb }} priority 100
+{% endif -%}
+set interfaces irb unit {{ map.irb }} family inet6 address {{ prefix|inet6_vrrp_north }} vrrp-inet6-group {{ map.irb }} preempt
+set interfaces irb unit {{ map.irb }} family inet6 address {{ prefix|inet6_vrrp_north }} vrrp-inet6-group {{ map.irb }} accept-data
+{% endif %}
+{% endfor %}
+{%endif%}

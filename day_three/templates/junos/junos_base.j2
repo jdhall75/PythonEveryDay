@@ -1,0 +1,117 @@
+{#-
+  Base config for all junos based devices
+  other files will be included from the partials directory
+
+  This is a jinja2 template for more information about the jinja templating
+  system please see the template designers guide
+  https://jinja.palletsprojects.com/en/2.10.x/templates/
+-#}
+set system license keys key "E437330107 aeaqib qcsb6a yesdn5 4caq3p nvwxk3 tjmnqx i2lpnz zqokgy 5qow3t jwl2yw qkvdb3 lo66xv 6ttzkb ipttgm ywi6h2 vk3u6f 634l44 cvehdv v5mf6i"
+
+set chassis forwarding-options l3-profile
+{% if host_data.role == 'DPA' -%}
+set chassis fpc 0 pic 0 port-range 24 31 channel-speed disable-auto-speed-detection
+{%- endif %}
+
+set system time-zone {{ region_data.timezone }}
+
+set system host-name {{ host_data.hosts }}.{{ region_data.abvr }}.{{ market_data.abvr2 }}
+
+set system login class operator-remote idle-timeout 15
+set system login class operator-remote permissions clear
+set system login class operator-remote permissions network
+set system login class operator-remote permissions reset
+set system login class operator-remote permissions trace
+set system login class operator-remote permissions view
+set system login class readonly-remote idle-timeout 15
+set system login class readonly-remote permissions firewall
+set system login class readonly-remote permissions interface
+set system login class readonly-remote permissions network
+set system login class readonly-remote permissions routing
+set system login class readonly-remote permissions view
+set system login class superuser-remote idle-timeout 15
+set system login class superuser-remote permissions all
+set system login user OPremote full-name "Remote Operator User"
+set system login user OPremote uid 2004
+set system login user OPremote class operator-remote
+set system login user ROremote full-name "Remote readonly user"
+set system login user ROremote uid 2005
+set system login user ROremote class readonly-remote
+set system login user SUremote full-name "Remote superuser"
+set system login user SUremote uid 2006
+set system login user SUremote class superuser-remote
+
+
+set system root-authentication plain-text-password
+{{ region_data.root_passwd }}
+{{ region_data.root_passwd }}
+
+set system login user emergency uid 2000
+set system login user emergency class superuser
+set system login user emergency authentication plain-text-password
+{{ region_data.emergency_passwd }}
+{{ region_data.emergency_passwd }}
+
+set system login user hops uid 2010
+set system login user hops class superuser
+set system login user hops authentication plain-text-password
+{{ region_data.hops_passwd }}
+{{ region_data.hops_passwd }}
+
+set system login announcement "\n*******************************************************************************\n*                                                                             *\n*                          Welcome to {{ host_data.hostname }}.{{ region_data.abvr }}.{{ market_data.abvr2 }}                        *\n*                                                                             *\n*             This is a Cox Communications P6 Region production               *\n*    device, so think before you type and remember all commands are logged.   *\n*                                                                             *\n*    On-call engineers are available for emergencies only. All non-emergency  *\n* requests should be sent to {{ region_data.local_noc_email }}                             *\n*                          or {{ region_data.tso_email }}                               *\n*                                                                             *\n*        Configured with MAWG Template Version Version {{ region_data.template_version }} [{{ region_data.template_date }}]       *\n*                                                                             *\n*******************************************************************************\n\n"
+set system login message "\n*******************************************************************************\n*                                                                             *\n*                              -- WARNING --                                  *\n*                                                                             *\n*  This is a private computer system. It is for authorized use only. Users    *\n*  (authorized or unauthorized) have no explicit or implicit expectation of   *\n*  privacy.                                                                   *\n*                                                                             *\n*  Any or all uses of this system and all files on this system may be         *\n*  intercepted, monitored, recorded, copied, audited, inspected, and          *\n*  disclosed to authorized site, law enforcement personnel, as well as        *\n*  authorized officials of other agencies.  By using this system, the user    *\n*  consents to such interception, monitoring, recording, copying, auditing,   *\n*  inspection and disclosure at the discretion of authorized site personnel.  *\n*                                                                             *\n*  Unauthorized or improper use of this system may result in administrative   *\n*  disciplinary action and civil and criminal penalties. By continuing to     *\n*  use this system you indicate your awareness of and consent to these terms  *\n*  and conditions of use.                                                     *\n*                                                                             *\n*  LOG OFF IMMEDIATELY if you do not agree to the conditions stated above!    *\n*                                                                             *\n*******************************************************************************\n\n"
+
+set system syslog user * any emergency
+set system syslog file MESSAGES any notice
+set system syslog file MESSAGES authorization info
+set system syslog file MESSAGES daemon info
+set system syslog file MESSAGES kernel info
+set system syslog file INTERACTIVE-COMMANDS interactive-commands any
+set system syslog file DEFAULT-LOG-MESSAGES any any
+set system syslog file DEFAULT-LOG-MESSAGES structured-data
+set system syslog time-format year
+set system syslog time-format millisecond
+
+
+set system ddos-protection protocols ipmcast-miss aggregate bandwidth 2000
+set system ddos-protection protocols ipmcast-miss aggregate burst 600
+
+set system no-redirects
+set system domain-name cox.net
+set routing-options forwarding-table export L3-LOAD-BALANCE
+set policy-options policy-statement L3-LOAD-BALANCE then load-balance per-packet
+set chassis aggregated-devices ethernet device-count 64
+
+set routing-options autonomous-system 22773
+
+{%for iface in host_data.interfaces -%}
+{% if iface.type == 'loopback' -%}
+set protocols lldp management-address {{ iface.inet6.network_address }}
+{% endif -%}
+{% endfor -%}
+set protocols lldp port-id-subtype interface-name
+set protocols lldp interface all
+
+set snmp description "{{ host_data.hosts }}.{{ region_data.abvr }}.{{ market_data.abvr2 }}"
+set snmp location "{{host_data.floor}};{{host_data.rack}};;;{{site_data.city}};{{ market_data.state }};{{ site_data.name }};{{ market_data.name }};{{ host_data.clli }};"
+set snmp contact "{{ host_data.oob_hostname }};{{ host_data.oob_inet }};{{ host_data.oob_port }};;;{{ region_data.group }} ;;{{ region_data.dept }};{{ region_data.phone }};;"
+set snmp community {{ market_data.snmp_community_vendor }} authorization read-only
+set snmp community {{ market_data.snmp_community_local }} authorization read-only
+set snmp community {{ market_data.snmp_community_atl }} authorization read-only
+set snmp trap-group RPHY-TRAPS version v2
+set snmp trap-group RPHY-TRAPS categories authentication
+set snmp trap-group RPHY-TRAPS categories chassis
+set snmp trap-group RPHY-TRAPS categories configuration
+set snmp trap-group RPHY-TRAPS categories link
+set snmp trap-group RPHY-TRAPS categories routing
+set snmp trap-group RPHY-TRAPS categories startup
+set snmp trap-group RPHY-TRAPS categories rmon-alarm
+
+{# process all the servers the host will talk to at at once #}
+{% include 'partials/servers.j2' %}
+
+{#
+ the interfaces.j2 file holds all the logic to process
+ all the hosts - interfaces data
+#}
+{% include 'partials/interfaces.j2' %}

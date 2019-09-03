@@ -1,0 +1,24 @@
+
+{%- for server in servers -%}
+{%- if server.type == 'snmp_trap' -%}
+set snmp trap-group RPHY-TRAPS targets {{ server.inet6 }}
+{% endif -%}
+
+{%- if server.type == 'ntp' %}
+set system ntp server {{ server.inet6 }}
+{%- elif server.type == 'dns' -%}
+set system name-server {{ server.inet6 }}
+{% elif server.type == 'syslog' -%}
+set system syslog host {{ server.inet6 }} any notice
+set system syslog host {{ server.inet6 }} authorization info
+set system syslog host {{ server.inet6 }} daemon info
+set system syslog host {{ server.inet6 }} kernel info
+set system syslog host {{ server.inet6 }} facility-override local2
+set system syslog host {{ server.inet6 }} log-prefix {{ host_data.hosts }}.{{ region_data.abvr }}.{{ market_data.abvr2 }}
+{% for iface in host_data.interfaces -%}
+{% if iface.type == 'loopback' -%}
+set system syslog host {{ server.inet6 }} source-address {{ iface.inet6.network_address }}
+{% endif -%}
+{% endfor -%}
+{% endif -%}
+{% endfor -%}
